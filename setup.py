@@ -4,7 +4,7 @@ import setuptools
 #     long_description = fh.read()
 
 setuptools.setup(
-    name="lattice",
+    name="analysis",
     version="0.0.1",
     author="Mischa Batelaan",
     author_email="mischa.batelaan@adelaide.edu.au",

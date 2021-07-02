@@ -1,11 +1,17 @@
 # -*- eval: (comment-tags-mode) -*-
 import numpy as np
-import stats
+from . import stats
 
 
 def chisqfn(p, fnc, x, y, cminv):
     r = fnc(x, p) - y
     return np.matmul(r, np.matmul(cminv, r.T))
+
+
+def chisqfn_bayes(p, fnc, x, y, cminv, priors, priorsigma):
+    r = fnc(x, p) - y
+    chiprior = np.sum((p - priors) ** 2 / priorsigma ** 2)
+    return np.matmul(r, np.matmul(cminv, r.T)) + chiprior
 
 
 def chisqfn3(p, fnc1, fnc2, fnc3, x1, x2, x3, y, cminv):
@@ -77,6 +83,8 @@ def initffncs(fitflg, a=1.0):
         fitfnc = TwoexpRatio4()
     elif fitflg == "Constant":
         fitfnc = Constant()
+    elif fitflg == "Linear":
+        fitfnc = Linear()
     return fitfnc
 
 
@@ -93,26 +101,39 @@ class Aexp:
         self.bounds = [(-np.inf, np.inf), (-1, 1.0)]
         # print("Initialising Aexp fitter")
 
-    def initparfnc(self, data):
+    def initparfnc(self, data, timeslice=10):
         # Get the effective mass and amplitude for p0
-        amp = stats.effamp(data, plot=False)
-        energy = stats.bs_effmass(data, plot=False)
+        amp = stats.effamp(data)
+        energy = stats.bs_effmass(data)
         # Set the initial guesses for the parameters
-        timeslice = 0
-        self.initpar = [
-            amp[timeslice][0],
-            energy[timeslice][0],
-        ]
-        self.bounds = [
+        self.initpar = np.array(
             [
-                amp[timeslice][0] - amp[timeslice][1],
-                amp[timeslice][0] + amp[timeslice][1],
-            ],
+                np.average(amp, axis=0)[timeslice],
+                np.average(energy, axis=0)[timeslice],
+            ]
+        )
+        self.bounds = np.array(
             [
-                energy[timeslice][0] - energy[timeslice][1],
-                energy[timeslice][0] + energy[timeslice][1],
-            ],
-        ]
+                [
+                    np.average(amp, axis=0)[timeslice]
+                    - 10 * np.std(amp, axis=0)[timeslice],
+                    np.average(amp, axis=0)[timeslice]
+                    + 10 * np.std(amp, axis=0)[timeslice],
+                ],
+                [
+                    np.average(energy, axis=0)[timeslice]
+                    - 10 * np.std(energy, axis=0)[timeslice],
+                    np.average(energy, axis=0)[timeslice]
+                    + 10 * np.std(energy, axis=0)[timeslice],
+                ],
+            ]
+        )
+        self.priorsigma = np.array(
+            [
+                10 * np.std(amp, axis=0)[timeslice],
+                10 * np.std(energy, axis=0)[timeslice],
+            ]
+        )
 
     def eval(self, x, p):
         """evaluate"""
@@ -151,40 +172,58 @@ class Twoexp:
         self.bounds = [(-np.inf, np.inf), (-1.0, 1.0), (-np.inf, np.inf), (-1.0, 3.0)]
         # print("Initialising Two exp fitter")
 
-    def initparfnc(self, data):
+    def initparfnc(self, data, timeslice=10):
         # Get the effective mass and amplitude for p0
         amp = stats.effamp(data, plot=False)
         energy = stats.bs_effmass(data, plot=False)
         # Set the initial guesses for the parameters
-        timeslice = 0
-        self.initpar = [
-            amp[timeslice][0],
-            energy[timeslice][0],
-            1.5 * amp[timeslice][0],
-            1.5 * energy[timeslice][0],
-        ]
-        self.bounds = [
+        # timeslice = 0
+        self.initpar = np.array(
             [
-                amp[timeslice][0] - amp[timeslice][1],
-                amp[timeslice][0] + amp[timeslice][1],
-            ],
+                np.average(amp, axis=0)[timeslice],
+                np.average(energy, axis=0)[timeslice],
+                1,
+                np.log(np.average(energy, axis=0)[timeslice]),
+            ]
+        )
+        self.priorsigma = np.array(
             [
-                energy[timeslice][0] - energy[timeslice][1],
-                energy[timeslice][0] + energy[timeslice][1],
-            ],
-            [
-                1.5 * amp[timeslice][0] - amp[timeslice][1],
-                1.5 * amp[timeslice][0] + amp[timeslice][1],
-            ],
-            [
-                1.5 * energy[timeslice][0] - energy[timeslice][1],
-                1.5 * energy[timeslice][0] + energy[timeslice][1],
-            ],
-        ]
+                10 * np.std(amp, axis=0)[timeslice],
+                10 * np.std(energy, axis=0)[timeslice],
+                1,
+                2,
+            ]
+        )
+        # self.bounds = [
+        #     [
+        #         amp[timeslice][0] - amp[timeslice][1],
+        #         amp[timeslice][0] + amp[timeslice][1],
+        #     ],
+        #     [
+        #         energy[timeslice][0] - energy[timeslice][1],
+        #         energy[timeslice][0] + energy[timeslice][1],
+        #     ],
+        #     [
+        #         1.5 * amp[timeslice][0] - amp[timeslice][1],
+        #         1.5 * amp[timeslice][0] + amp[timeslice][1],
+        #     ],
+        #     [
+        #         1.5 * energy[timeslice][0] - energy[timeslice][1],
+        #         1.5 * energy[timeslice][0] + energy[timeslice][1],
+        #     ],
+        # ]
+
+    # def eval(self, x, p):
+    #     """evaluate"""
+    #     return p[0] * np.exp(-x * p[1]) + p[2] * np.exp(-x * p[3])
+
+    # def eval(self, x, p):
+    #     """evaluate, but with ordered energies, p[3]=(E_1-E_0)"""
+    #     return p[0] * np.exp(-x * p[1]) * (1 + p[2] * np.exp(-x * p[3]))
 
     def eval(self, x, p):
-        """evaluate"""
-        return p[0] * np.exp(-x * p[1]) + p[2] * np.exp(-x * p[3])
+        """evaluate, but with ordered energies, p[3]=ln(E_1-E_0)"""
+        return p[0] * np.exp(-x * p[1]) * (1 + p[2] * np.exp(-x * np.exp(p[3])))
 
     def eval_2(self, x, p0, p1, p2, p3):
         """evaluate"""
@@ -246,18 +285,50 @@ class Threeexp:
         # self.bounds=([-np.inf,0,-np.inf,0.5,-np.inf,1.1],[np.inf,1,np.inf,2,np.inf,10])
         # print("Initialising Three exp fitter")
 
-    def initparfnc(self, y):
-        self.initpar[0] = y[0]
-        self.initpar[2] = y[0]
-        self.initpar[4] = y[0]
+    def initparfnc(self, data, timeslice=10):
+        amp = stats.effamp(data, plot=False)
+        energy = stats.bs_effmass(data, plot=False)
+
+        self.initpar = np.array(
+            [
+                np.average(amp, axis=0)[timeslice],
+                np.average(energy, axis=0)[timeslice],
+                1,
+                np.log(np.average(energy, axis=0)[timeslice]),
+                1,
+                np.log(np.average(energy, axis=0)[timeslice]),
+            ]
+        )
+        self.priorsigma = np.array(
+            [
+                10 * np.std(amp, axis=0)[timeslice],
+                10 * np.std(energy, axis=0)[timeslice],
+                1,
+                2,
+                1,
+                2,
+            ]
+        )
 
     def eval(self, x, p):
-        """evaluate"""
+        """evaluate, but with ordered energies, p[3]=ln(E_1-E_0) and p[4]=ln(E_2-E_0)"""
         return (
-            p[0] * np.exp(-x * p[1])
-            + p[2] * np.exp(-x * p[3])
-            + p[4] * np.exp(-x * p[5])
+            p[0]
+            * np.exp(-x * p[1])
+            * (
+                1
+                + p[2] * np.exp(-x * np.exp(p[3]))
+                + p[4] * np.exp(-x * (np.exp(p[3]) + np.exp(p[5])))
+            )
         )
+
+    # def eval(self, x, p):
+    #     """evaluate"""
+    #     return (
+    #         p[0] * np.exp(-x * p[1])
+    #         + p[2] * np.exp(-x * p[3])
+    #         + p[4] * np.exp(-x * p[5])
+    #     )
 
     def eval_2(self, x, p0, p1, p2, p3, p4, p5):
         """evaluate"""
@@ -538,16 +609,63 @@ class Constant:
         self.bounds = [(-np.inf, np.inf)]
         # print("Initialising Constant fitter")
 
-    def initparfnc(self, x, y):
-        pass
+    def initparfnc(self, data, timeslice=10):
+        self.initpar = np.array([np.average(data, axis=0)[timeslice]])
+        self.bounds = np.array(
+            [
+                np.average(data, axis=0)[timeslice]
+                - 10 * np.std(data, axis=0)[timeslice],
+                np.average(data, axis=0)[timeslice]
+                + 10 * np.std(data, axis=0)[timeslice],
+            ]
+        )
+        self.priorsigma = np.array([10 * np.std(data, axis=0)[timeslice]])
 
     def eval(self, x, p):
         """evaluate"""
-        return p[0]
+        return p[0] * x / x
 
 
-def constant(x, a):
-    return a * x / x
+############################################################
+#
+# Linear function f(x)=ax+b
+class Linear:
+    def __init__(self):
+        self.npar = 2
+        self.label = r"linear"
+        self.initpar = np.array([1.0, 1.0])
+        self.bounds = [(-np.inf, np.inf), (-np.inf, np.inf)]
+
+    def initparfnc(self, data, timeslice=10):
+        slope = data[:, timeslice + 1] - data[:, timeslice]
+        yintercept = data[:, timeslice] - timeslice * slope
+
+        self.initpar = np.array([np.average(slope), np.average(yintercept)])
+        self.bounds = np.array(
+            [
+                [
+                    np.average(slope) - np.std(slope),
+                    np.average(slope) + np.std(slope),
+                ],
+                [
+                    np.average(yintercept) - np.std(yintercept),
+                    np.average(yintercept) + np.std(yintercept),
+                ],
+            ]
+        )
+        self.priorsigma = np.array([10 * np.std(slope), 10 * np.std(yintercept)])
+
+    def eval(self, x, p):
+        """evaluate"""
+        return p[0] * x + p[1]
+
+
+def constant(x, p0):
+    return p0 * x / x
+
+
+def linear(x, p0, p1):
+    return p0 + p1 * x
 
 
 def oneexp(t, A0, m0):
