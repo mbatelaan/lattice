@@ -71,8 +71,12 @@ def initffncs(fitflg, a=1.0):
         fitfnc = Aexp()
     elif fitflg == "Twoexp":
         fitfnc = Twoexp()
+    elif fitflg == "Twoexp_log":
+        fitfnc = Twoexp_log()
     elif fitflg == "Threeexp":
         fitfnc = Threeexp()
+    elif fitflg == "Threeexp_log":
+        fitfnc = Threeexp_log()
     elif fitflg == "TwoexpRatio":
         fitfnc = TwoexpRatio()
     elif fitflg == "TwoexpRatio2":
@@ -182,6 +186,115 @@ class Twoexp:
             [
                 np.average(amp, axis=0)[timeslice],
                 np.average(energy, axis=0)[timeslice],
+                np.average(amp, axis=0)[timeslice],
+                2 * np.average(energy, axis=0)[timeslice],
+            ]
+        )
+        self.priorsigma = np.array(
+            [
+                10 * np.std(amp, axis=0)[timeslice],
+                10 * np.std(energy, axis=0)[timeslice],
+                10 * np.std(amp, axis=0)[timeslice],
+                10 * np.std(energy, axis=0)[timeslice],
+            ]
+        )
+        # self.bounds = [
+        #     [
+        #         amp[timeslice][0] - amp[timeslice][1],
+        #         amp[timeslice][0] + amp[timeslice][1],
+        #     ],
+        #     [
+        #         energy[timeslice][0] - energy[timeslice][1],
+        #         energy[timeslice][0] + energy[timeslice][1],
+        #     ],
+        #     [
+        #         1.5 * amp[timeslice][0] - amp[timeslice][1],
+        #         1.5 * amp[timeslice][0] + amp[timeslice][1],
+        #     ],
+        #     [
+        #         1.5 * energy[timeslice][0] - energy[timeslice][1],
+        #         1.5 * energy[timeslice][0] + energy[timeslice][1],
+        #     ],
+        # ]
+
+    def eval(self, x, p):
+        """evaluate"""
+        return p[0] * np.exp(-x * p[1]) + p[2] * np.exp(-x * p[3])
+
+    # def eval(self, x, p):
+    #     """evaluate, but with ordered energies, p[3]=(E_1-E_0)"""
+    #     return p[0] * np.exp(-x * p[1]) * (1 + p[2] * np.exp(-x * p[3]))
+
+    # def eval(self, x, p):
+    #     """evaluate, but with ordered energies, p[3]=ln(E_1-E_0)"""
+    #     return p[0] * np.exp(-x * p[1]) * (1 + p[2] * np.exp(-x * np.exp(p[3])))
+
+    def eval_2(self, x, p0, p1, p2, p3):
+        """evaluate"""
+        return p0 * np.exp(-x * p1) + p2 * np.exp(-x * p3)
+
+    def jac(self, p, func, x, p2, p3):
+        print(f"{p=}")
+        print(f"{func=}")
+        print(f"{x=}")
+        print(f"{p2=}")
+        print(f"{p3=}")
+        return np.array(
+            [
+                np.exp(-x * p[1]),
+                -x * p[0] * np.exp(-x * p[1]),
+                np.exp(-x * p[3]),
+                -x * p[2] * np.exp(-x * p[3]),
+            ]
+        )
+
+    def dereval(self, x, p, pe, v):
+        """evaluate the derivative"""
+        eA = np.exp(-x * p[1])
+        eC = np.exp(-x * p[3])
+        eB = -x * p[0] * eA
+        eD = -x * p[2] * eC
+        return np.sqrt(
+            pe[0] ** 2 * eA ** 2
+            + 2 * pe[0] * pe[1] * v[0] * eA * eB
+            + 2 * pe[0] * pe[2] * v[1] * eA * eC
+            + 2 * pe[0] * pe[3] * v[2] * eA * eD
+            + pe[1] ** 2 * eB ** 2
+            + 2 * pe[1] * pe[2] * v[3] * eB * eC
+            + 2 * pe[1] * pe[3] * v[4] * eB * eD
+            + pe[2] ** 2 * eC ** 2
+            + 2 * pe[2] * pe[3] * v[5] * eC * eD
+            + pe[3] ** 2 * eD ** 2
+        )
+
+
+############################################################
+#
+# Two exponential f(x)=a*exp(b*x) + c*exp(d*x)
+
+
+class Twoexp_log:
+    def __init__(self):
+        self.npar = 4
+        self.label = r"Twoexp"
+        self.initpar = np.array([1.0, 0.4, 1.0, 0.9])
+        # self.initpar=np.array([0.08,1.8e-6,0.8,8.4e-1]) #p+2+2+0
+        # self.initpar=np.array([1.,1.15e-4,-1.4,1.4]) #p+0+0+0
+        # self.initpar=np.array([1.,1.8e-4,-3.8e-4,3.5e-1]) #p+1+0+0
+        # self.bounds=([-np.inf,0,-np.inf,0],[np.inf,10,np.inf,10])
+        self.bounds = [(-np.inf, np.inf), (-1.0, 1.0), (-np.inf, np.inf), (-1.0, 3.0)]
+        # print("Initialising Two exp fitter")
+
+    def initparfnc(self, data, timeslice=10):
+        # Get the effective mass and amplitude for p0
+        amp = stats.effamp(data, plot=False)
+        energy = stats.bs_effmass(data, plot=False)
+        # Set the initial guesses for the parameters
+        # timeslice = 0
+        self.initpar = np.array(
+            [
+                np.average(amp, axis=0)[timeslice],
+                np.average(energy, axis=0)[timeslice],
                 1,
                 np.log(np.average(energy, axis=0)[timeslice]),
             ]
@@ -267,9 +380,85 @@ class Twoexp:
 ############################################################
 #
 # Three exponential f(x)=a*exp(b*x) + c*exp(d*x) + f*exp(g*x)
-
-
 class Threeexp:
+    def __init__(self):
+        self.npar = 6
+        self.label = r"Threeexp"
+        self.initpar = np.array((0.08, 0.8, 0.08, 1.2, 0.08, 2.1))
+        self.bounds = [
+            (-np.inf, np.inf),
+            (-1.0, 1.0),
+            (-np.inf, np.inf),
+            (-1.0, 3.0),
+            (-np.inf, np.inf),
+            (-1.0, 3.0),
+        ]
+        # self.bounds=([-np.inf,0,-np.inf,0.5,-np.inf,1.1],[np.inf,1,np.inf,2,np.inf,10])
+        # print("Initialising Three exp fitter")
+
+    def initparfnc(self, data, timeslice=10):
+        amp = stats.effamp(data, plot=False)
+        energy = stats.bs_effmass(data, plot=False)
+
+        self.initpar = np.array(
+            [
+                np.average(amp, axis=0)[timeslice],
+                np.average(energy, axis=0)[timeslice],
+                1,
+                np.log(np.average(energy, axis=0)[timeslice]),
+                1,
+                np.log(np.average(energy, axis=0)[timeslice]),
+            ]
+        )
+        self.priorsigma = np.array(
+            [
+                10 * np.std(amp, axis=0)[timeslice],
+                10 * np.std(energy, axis=0)[timeslice],
+                1,
+                2,
+                1,
+                2,
+            ]
+        )
+
+    def eval(self, x, p):
+        """evaluate"""
+        return (
+            p[0] * np.exp(-x * p[1])
+            + p[2] * np.exp(-x * p[3])
+            + p[4] * np.exp(-x * p[5])
+        )
+
+    def eval_2(self, x, p0, p1, p2, p3, p4, p5):
+        """evaluate"""
+        return p0 * np.exp(-x * p1) + p2 * np.exp(-x * p3) + p4 * np.exp(-x * p5)
+
+    def dereval(self, x, p, pe, v):
+        """evaluate the derivative"""
+        # not implemented yet
+        assert 1 == 0
+        eA = np.exp(-x * p[1])
+        eC = np.exp(-x * p[3])
+        eB = -x * p[0] * eA
+        eD = -x * p[2] * eC
+        return np.sqrt(
+            pe[0] ** 2 * eA ** 2
+            + 2 * pe[0] * pe[1] * v[0] * eA * eB
+            + 2 * pe[0] * pe[2] * v[1] * eA * eC
+            + 2 * pe[0] * pe[3] * v[2] * eA * eD
+            + pe[1] ** 2 * eB ** 2
+            + 2 * pe[1] * pe[2] * v[3] * eB * eC
+            + 2 * pe[1] * pe[3] * v[4] * eB * eD
+            + pe[2] ** 2 * eC ** 2
+            + 2 * pe[2] * pe[3] * v[5] * eC * eD
+            + pe[3] ** 2 * eD ** 2
+        )
+
+
+############################################################
+#
+# Three exponential f(x)=a*exp(b*x) + c*exp(d*x) + f*exp(g*x)
+class Threeexp_log:
     def __init__(self):
         self.npar = 6
         self.label = r"Threeexp"
@@ -505,11 +694,94 @@ class TwoexpRatio4:
         energy = stats.bs_effmass(data, plot=False)
         # Set the initial guesses for the parameters
         timeslice = 0
+        # self.initpar = [
+        #     amp[timeslice][0],
+        #     energy[timeslice][0],
+        #     amp[timeslice][0],
+        #     energy[timeslice][0],
+        # ]
         self.initpar = [
-            amp[timeslice][0],
+            1,
             energy[timeslice][0],
-            1.5 * amp[timeslice][0],
-            1.5 * energy[timeslice][0],
+            1,
+            energy[timeslice][0],
+        ]
+        self.bounds = [
+            [
+                amp[timeslice][0] - amp[timeslice][1],
+                amp[timeslice][0] + amp[timeslice][1],
+            ],
+            [
+                energy[timeslice][0] - energy[timeslice][1],
+                energy[timeslice][0] + energy[timeslice][1],
+            ],
+            [
+                1.5 * amp[timeslice][0] - amp[timeslice][1],
+                1.5 * amp[timeslice][0] + amp[timeslice][1],
+            ],
+            [
+                1.5 * energy[timeslice][0] - energy[timeslice][1],
+                1.5 * energy[timeslice][0] + energy[timeslice][1],
+            ],
+        ]
+
+    def eval(self, x, p):
+        """evaluate"""
+        return (
+            (self.q[0] + p[0]) * np.exp(-x * (self.q[1] + p[1]))
+            + (self.q[2] + p[2]) * np.exp(-x * (self.q[3] + p[3]))
+        ) / (
+            (self.q[0] - p[0]) * np.exp(-x * (self.q[1] - p[1]))
+            + (self.q[2] - p[2]) * np.exp(-x * (self.q[3] - p[3]))
+        )
+
+    def eval2(self, x, q, p):
+        """evaluate the function with the q variables being the amplitudes and energies"""
+        return (
+            (q[0] + p[0]) * np.exp(-x * (q[1] + p[1]))
+            + (q[2] + p[2]) * np.exp(-x * (q[3] + p[3]))
+        ) / (
+            (q[0] - p[0]) * np.exp(-x * (q[1] - p[1]))
+            + (q[2] - p[2]) * np.exp(-x * (q[3] - p[3]))
+        )
+
+
+############################################################
+#
+# Two exponential ratio #4
+#
+class TwoexpRatio5:
+    def __init__(self):
+        self.npar = 4
+        self.label = r"TwoexpRatio5"
+        self.initpar = np.array([1.0e-4, 1.8e-4, 1.0e-4, 3.5e-4])  # p+1+0+0
+        self.q = np.array([1.0, 1.0, 1.0, 1.0])
+        # q[0] = A0
+        # q[1] = E_0
+        # q[2] = A1
+        # q[3] = E_1
+        self.bounds = np.array(
+            [(-np.inf, np.inf), (-1.0, 1.0), (-np.inf, np.inf), (-1.0, 3.0)]
+        )
+        # print("Initialising Two exp ratio fitter")
+
+    def initparfnc(self, data):
+        # Get the effective mass and amplitude for p0
+        amp = stats.effamp(data, plot=False)
+        energy = stats.bs_effmass(data, plot=False)
+        # Set the initial guesses for the parameters
+        timeslice = 0
+        # self.initpar = [
+        #     amp[timeslice][0],
+        #     energy[timeslice][0],
+        #     amp[timeslice][0],
+        #     energy[timeslice][0],
+        # ]
+        self.initpar = [
+            1,
+            energy[timeslice][0],
+            1,
+            energy[timeslice][0],
         ]
         self.bounds = [
             [
