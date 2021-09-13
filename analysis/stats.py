@@ -181,8 +181,8 @@ def fitratio(fitfnc, p0, x, data, bounds=None, time=False, fullcov=False):
     )
     redchisq = resavg.fun / (len(data[0, :]) - len(p0))
     p0 = resavg.x
-    # print(f"{resavg.x=}")
-    # print(f"{redchisq=}")
+    # print(f"{resavg.x}")
+    # print(f"{redchisq}")
 
     param_bs = np.zeros((nboot, len(p0)))
     cvinv = np.linalg.inv(np.diag(yerr ** 2))
@@ -242,8 +242,8 @@ def fit_bootstrap(fitfnc, p0, x, data, bounds=None, time=False, fullcov=False):
     chisq = resavg.fun
     redchisq = resavg.fun / (len(data[0, :]) - len(p0))
     p0 = resavg.x
-    # print(f"{resavg.x=}")
-    # print(f"{redchisq=}")
+    # print(f"{resavg.x}")
+    # print(f"{redchisq}")
 
     param_bs = np.zeros((nboot, len(p0)))
     # cvinv = np.linalg.inv(np.diag(yerr ** 2))
@@ -307,8 +307,8 @@ def fit_bootstrap_bayes(
     # redchisq = resavg.fun / (len(dataavg) - len(p0))
     redchisq = chisq / (len(dataavg) - len(p0))
     # p0 = resavg.x
-    # print(f"{resavg.x=}")
-    # print(f"{redchisq=}")
+    # print(f"{resavg.x}")
+    # print(f"{redchisq}")
 
     param_bs = np.zeros((nboot, len(p0)))
     # cvinv = np.linalg.inv(np.diag(yerr ** 2))
@@ -424,7 +424,7 @@ def fit_bootstrap_ratio(
         len(data_ratio2[0, :]) - len(fitfnc_ratio.initpar)
     )
     p0_q2 = resavg_ratio2.x
-    # print(f"{resavg_ratio2.x=}")
+    # print(f"{resavg_ratio2.x}")
 
     ### Fit to each bootstrap resample
     param_bs = np.zeros((nboot, len(p0)))
@@ -557,9 +557,9 @@ def fit_loop(
                 if disp:
                     print(f"parameter values = {fitparam_unpert['paramavg']}")
                     print(f"chi-sq. per dof. = {fitparam_unpert['redchisq']}")
-                    # print(f"{fitparam_unpert['paramavg']=}")
-                    # print(f"{fitparam_unpert['redchisq']=}")
-                    # print(f"{np.average(fitparam_unpert['param'],axis=0)=}\n")
+                    # print(f"{fitparam_unpert['paramavg']}")
+                    # print(f"{fitparam_unpert['redchisq']}")
+                    # print(f"{np.average(fitparam_unpert['param'],axis=0)}\n")
                 fitparam_unpert["y"] = data
                 fitlist.append(fitparam_unpert)
 
@@ -702,9 +702,9 @@ def fit_loop_bayes(
                 if disp:
                     print(f"parameter values = {fitparam_unpert['paramavg']}")
                     print(f"chi-sq. per dof. = {fitparam_unpert['redchisq']}")
-                    # print(f"{fitparam_unpert['paramavg']=}")
-                    # print(f"{fitparam_unpert['redchisq']=}")
-                    # print(f"{np.average(fitparam_unpert['param'],axis=0)=}\n")
+                    # print(f"{fitparam_unpert['paramavg']}")
+                    # print(f"{fitparam_unpert['redchisq']}")
+                    # print(f"{np.average(fitparam_unpert['param'],axis=0)}\n")
                 fitparam_unpert["y"] = data
                 fitlist.append(fitparam_unpert)
 

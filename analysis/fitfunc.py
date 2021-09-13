@@ -234,11 +234,11 @@ class Twoexp:
         return p0 * np.exp(-x * p1) + p2 * np.exp(-x * p3)
 
     def jac(self, p, func, x, p2, p3):
-        print(f"{p=}")
-        print(f"{func=}")
-        print(f"{x=}")
-        print(f"{p2=}")
-        print(f"{p3=}")
+        print(f"{p}")
+        print(f"{func}")
+        print(f"{x}")
+        print(f"{p2}")
+        print(f"{p3}")
         return np.array(
             [
                 np.exp(-x * p[1]),
@@ -343,11 +343,11 @@ class Twoexp_log:
         return p0 * np.exp(-x * p1) + p2 * np.exp(-x * p3)
 
     def jac(self, p, func, x, p2, p3):
-        print(f"{p=}")
-        print(f"{func=}")
-        print(f"{x=}")
-        print(f"{p2=}")
-        print(f"{p3=}")
+        print(f"{p}")
+        print(f"{func}")
+        print(f"{x}")
+        print(f"{p2}")
+        print(f"{p3}")
         return np.array(
             [
                 np.exp(-x * p[1]),
