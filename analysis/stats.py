@@ -34,6 +34,7 @@ def sortmompar(params):
 
 
 def bs_effmass(data, time_axis=1, spacing=1, a=0.074, plot=False):
+    """ Return the effective mass of the data"""
     effmass_ = np.log(np.abs(data[:, :-spacing] / data[:, spacing:])) / spacing
     if plot:
         xlim = 30
@@ -70,10 +71,13 @@ def effamp(data, plot=False, timeslice=10):
     Idea comes from Hoerz2020 paper
     """
     effmass0 = bs_effmass(data)
+    # effamp = np.abs(
+    #     data[:, :-1]
+    #     * np.exp(effmass0 * np.arange(len(effmass0[0])), dtype=np.longdouble)
+    # )
     effamp = np.abs(
         data[:, :-1]
-        * np.exp(effmass0 * np.arange(len(effmass0[0])), dtype=np.longdouble)
-    )
+        * np.exp(effmass0 * np.arange(len(effmass0[0]))))
 
     if plot:
         xlim = 30

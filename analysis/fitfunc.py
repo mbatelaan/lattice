@@ -7,6 +7,10 @@ def chisqfn(p, fnc, x, y, cminv):
     r = fnc(x, p) - y
     return np.matmul(r, np.matmul(cminv, r.T))
 
+def chisqfn2(p, fnc, x, y, cminv):
+    r = fnc(x, *p) - y
+    return np.matmul(r, np.matmul(cminv, r.T))
+
 
 def chisqfn_bayes(p, fnc, x, y, cminv, priors, priorsigma):
     r = fnc(x, p) - y
@@ -101,7 +105,7 @@ class Aexp:
     def __init__(self):
         self.npar = 2
         self.label = r"Aexp"
-        self.initpar = np.array([1.0, 1.18e-4])
+        self.initpar = np.array([1.0, 4.0e-1])
         self.bounds = [(-np.inf, np.inf), (-1, 1.0)]
         # print("Initialising Aexp fitter")
 
@@ -144,7 +148,7 @@ class Aexp:
         return p[0] * np.exp(-1 * x * p[1])
 
     def eval_2(self, x, p0, p1):
-        """evaluate"""
+        """evaluate, curve_fit requires the parameters to be separate"""
         return p0 * np.exp(-x * p1)
 
     def dereval(self, x, p, pe, v):
@@ -910,6 +914,7 @@ class Linear:
 
     def initparfnc(self, data, timeslice=10):
         slope = data[:, timeslice + 1] - data[:, timeslice]
+        print('slope = ', slope)
         yintercept = data[:, timeslice] - timeslice * slope
 
         self.initpar = np.array([np.average(slope), np.average(yintercept)])
@@ -930,6 +935,10 @@ class Linear:
     def eval(self, x, p):
         """evaluate"""
         return p[0] * x + p[1]
+
+    def eval_2(self, x, p0, p1):
+        """evaluate"""
+        return p0 * x + p1
 
 
 def constant(x, p0):
