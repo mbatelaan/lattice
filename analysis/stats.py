@@ -134,8 +134,8 @@ def bayesian_weights(fitlist):
     fitlist is a list of dictionaries where each dictionary contains the entries chisq, param, x,y and paramavgm"""
 
     chisq_list = np.array([i["chisq"] for i in fitlist])
-    val_list = np.array([np.average(i["param"], axis=0)[1] for i in fitlist])
-    error_list = np.array([np.std(i["param"], axis=0)[1] for i in fitlist])
+    # val_list = np.array([np.average(i["param"], axis=0)[1] for i in fitlist])
+    # error_list = np.array([np.std(i["param"], axis=0)[1] for i in fitlist])
     Ncut = np.array([np.shape(fitlist[-1]["y"])[1] - len(i["x"]) for i in fitlist])
     Ncut = Ncut - np.min(Ncut)
     parnum = np.array([len(i["paramavg"]) for i in fitlist])
