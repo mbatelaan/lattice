@@ -33,8 +33,16 @@ def sortmompar(params):
     return sortedlist
 
 
-def bs_effmass(data, time_axis=1, spacing=1, a=0.074, plot=False):
-    """ Return the effective mass of the data"""
+def bs_effmass(
+    data: np.array, time_axis: int = 1, spacing: int = 1, plot: bool = False
+):
+    """Calculate the effective energy of the correlator
+
+    :param data: The data of the correlator where the time index is given by the parameter time_axis the other indices can contain bootstrap samples or other.
+    :param time_axis: Determines axis on which the timeslices are located, default is 1
+    :param spacing: Determines the spacing to use between the numerator and denominator.
+    :returns: An array containing the effective energy for all the bootstrap values
+    """
     effmass_ = np.log(np.abs(data[:, :-spacing] / data[:, spacing:])) / spacing
     if plot:
         xlim = 30
@@ -60,24 +68,31 @@ def bs_effmass(data, time_axis=1, spacing=1, a=0.074, plot=False):
     return effmass_
 
 
-def effmass(data, a=0.074, spacing=1):
+def effmass(data: np.array, spacing: int = 1):
+    """Calculate the effective energy of the correlator
+
+    :param data: The data of the correlator for all timeslices.
+    :param spacing: Determines the spacing to use between the numerator and denominator.
+    :returns: An array containing the effective energy
+    """
     effmass = np.log(np.abs(data[:-spacing] / data[spacing:])) / spacing
     return effmass
 
 
-def effamp(data, plot=False, timeslice=10):
-    """
-    Return the effective amplitude and plot it if plot==True
-    Idea comes from Hoerz2020 paper
+def effamp(data: np.array, plot: bool = False):
+    """Calculate an effective amplitude similarly to the effective energy of correlator, and potentially plot this effective amplitude
+    Idea comes from Hoerz2020 paper.
+
+    :param data: The data of the correlator where the first index is the bootstraps and the second index is the time.
+    :param plot: Boolean determining whether to plot or not
+    :returns: An array containing the effective amplitude for all the bootstrap values
     """
     effmass0 = bs_effmass(data)
     # effamp = np.abs(
     #     data[:, :-1]
     #     * np.exp(effmass0 * np.arange(len(effmass0[0])), dtype=np.longdouble)
     # )
-    effamp = np.abs(
-        data[:, :-1]
-        * np.exp(effmass0 * np.arange(len(effmass0[0]))))
+    effamp = np.abs(data[:, :-1] * np.exp(effmass0 * np.arange(len(effmass0[0]))))
 
     if plot:
         xlim = 30
@@ -86,7 +101,6 @@ def effamp(data, plot=False, timeslice=10):
         yavg = np.average(effamp, axis=0)
         yerr = np.std(effamp, axis=0)
         pypl.figure("effampplot", figsize=(9, 6))
-        # pypl.plot(efftime[:xlim], effamp[:xlim])
         pypl.xlim(0, xlim)
         pypl.errorbar(
             efftime[:xlim],
@@ -189,7 +203,7 @@ def fitratio(fitfnc, p0, x, data, bounds=None, time=False, fullcov=False):
     # print(f"{redchisq}")
 
     param_bs = np.zeros((nboot, len(p0)))
-    cvinv = np.linalg.inv(np.diag(yerr ** 2))
+    cvinv = np.linalg.inv(np.diag(yerr**2))
     for iboot in range(nboot):
         yboot = data[iboot, :]
         res = syopt.minimize(
@@ -294,7 +308,7 @@ def fit_bootstrap_bayes(
     nboot = np.shape(data)[0]
     yerr = np.std(data, axis=0)
     # Idinv = np.diag(np.ones(len(data[0])))
-    varinv = np.linalg.inv(np.diag(yerr ** 2))
+    varinv = np.linalg.inv(np.diag(yerr**2))
     cvinv = np.linalg.inv(np.cov(data.T))
     dataavg = np.average(data, axis=0)
 
