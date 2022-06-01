@@ -88,11 +88,9 @@ def effamp(data: np.array, plot: bool = False):
     :returns: An array containing the effective amplitude for all the bootstrap values
     """
     effmass0 = bs_effmass(data)
-    # effamp = np.abs(
-    #     data[:, :-1]
-    #     * np.exp(effmass0 * np.arange(len(effmass0[0])), dtype=np.longdouble)
-    # )
-    effamp = np.abs(data[:, :-1] * np.exp(effmass0 * np.arange(len(effmass0[0]))))
+    effamp = np.abs(
+        data[:, :-1] * np.exp(effmass0 * np.arange(len(effmass0[0])))
+    )  # , dtype=np.longdouble)
 
     if plot:
         xlim = 30
@@ -119,7 +117,13 @@ def effamp(data: np.array, plot: bool = False):
 
 
 def fitweights(dof, chisq, derrors):
-    """Take a list of degrees of freedom and of chi-squared (not reduced) values and errors of the fit and return the weights for each fit"""
+    """Take a list of degrees of freedom and of chi-squared (not reduced) values and errors of the fit and return the weights for each fit
+
+    :param dof: a list of the degrees of freedom
+    :param chisq: a list of the chi-squared of the fits
+    :param derrors: a list of  the uncertainty of the fit values
+    :returns: a list of the weights for the fits
+    """
     pf = []
     for d, chi in zip(dof, chisq):
         # pf.append(gammaincc(d/2,chi/2)/gamma(d/2))
@@ -146,8 +150,7 @@ def beane_weights(fitlist, param_index=1):
 
 
 def bayesian_weights(fitlist):
-    """
-    Calculate the weight of each fit according to the Bayesian formalism explained in the paper by Jay et al (2020)
+    """Calculate the weight of each fit according to the Bayesian formalism explained in the paper by Jay et al (2020)
 
     fitlist is a list of dictionaries where each dictionary contains the entries chisq, param, x,y and paramavgm"""
 
@@ -171,8 +174,7 @@ def bayesian_weights(fitlist):
 
 
 def fitratio(fitfnc, p0, x, data, bounds=None, time=False, fullcov=False):
-    """
-    Fit to every bootstrap ensemble and use multiprocessing to split up the task over two processors
+    """Fit to every bootstrap ensemble and use multiprocessing to split up the task over two processors
     p0: initial guess for the parameters
     x: array of x values to fit over
     data: array/list of BootStrap objects
@@ -199,8 +201,6 @@ def fitratio(fitfnc, p0, x, data, bounds=None, time=False, fullcov=False):
     )
     redchisq = resavg.fun / (len(data[0, :]) - len(p0))
     p0 = resavg.x
-    # print(f"{resavg.x}")
-    # print(f"{redchisq}")
 
     param_bs = np.zeros((nboot, len(p0)))
     cvinv = np.linalg.inv(np.diag(yerr**2))
@@ -260,8 +260,6 @@ def fit_bootstrap(fitfnc, p0, x, data, bounds=None, time=False, fullcov=False):
     chisq = resavg.fun
     redchisq = resavg.fun / (len(data[0, :]) - len(p0))
     p0 = resavg.x
-    # print(f"{resavg.x}")
-    # print(f"{redchisq}")
 
     param_bs = np.zeros((nboot, len(p0)))
     # cvinv = np.linalg.inv(np.diag(yerr ** 2))
@@ -325,8 +323,6 @@ def fit_bootstrap_bayes(
     # redchisq = resavg.fun / (len(dataavg) - len(p0))
     redchisq = chisq / (len(dataavg) - len(p0))
     # p0 = resavg.x
-    # print(f"{resavg.x}")
-    # print(f"{redchisq}")
 
     param_bs = np.zeros((nboot, len(p0)))
     # cvinv = np.linalg.inv(np.diag(yerr ** 2))
@@ -442,7 +438,6 @@ def fit_bootstrap_ratio(
         len(data_ratio2[0, :]) - len(fitfnc_ratio.initpar)
     )
     p0_q2 = resavg_ratio2.x
-    # print(f"{resavg_ratio2.x}")
 
     ### Fit to each bootstrap resample
     param_bs = np.zeros((nboot, len(p0)))
@@ -575,9 +570,6 @@ def fit_loop(
                 if disp:
                     print(f"parameter values = {fitparam_unpert['paramavg']}")
                     print(f"chi-sq. per dof. = {fitparam_unpert['redchisq']}")
-                    # print(f"{fitparam_unpert['paramavg']}")
-                    # print(f"{fitparam_unpert['redchisq']}")
-                    # print(f"{np.average(fitparam_unpert['param'],axis=0)}\n")
                 fitparam_unpert["y"] = data
                 fitlist.append(fitparam_unpert)
 
@@ -720,9 +712,6 @@ def fit_loop_bayes(
                 if disp:
                     print(f"parameter values = {fitparam_unpert['paramavg']}")
                     print(f"chi-sq. per dof. = {fitparam_unpert['redchisq']}")
-                    # print(f"{fitparam_unpert['paramavg']}")
-                    # print(f"{fitparam_unpert['redchisq']}")
-                    # print(f"{np.average(fitparam_unpert['param'],axis=0)}\n")
                 fitparam_unpert["y"] = data
                 fitlist.append(fitparam_unpert)
 
