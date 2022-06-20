@@ -1,0 +1,1 @@
+unpack_FH.py defines a dictionary where each key is a feynman-hellmann operator and the corresponding entry is a list of momentum values to extract for that operator. Run unpack_FH.py with a list of limefiles to extract the data from.

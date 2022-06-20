@@ -2,6 +2,7 @@ import unpack_barspec_fh as ub
 from pathlib import Path
 import sys
 
+# The empty string in this dict will read those momenta for the unperturbed correlators. The rest all define a feynman-hellmann operator.
 momdict = {
     "op2_q+6+4+2_op2_q-6-4-2": [[-3, -2, -1], [3, 2, 1]],
     "op8_q+6+4+2_op8_q-6-4-2": [[-3, -2, -1], [3, 2, 1]],
