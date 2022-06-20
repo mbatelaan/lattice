@@ -11,6 +11,10 @@ def chisqfn2(p, fnc, x, y, cminv):
     r = fnc(x, *p) - y
     return np.matmul(r, np.matmul(cminv, r.T))
 
+def chisqfn4(p, fnc, x, y, param, cminv):
+    r = fnc(x, *p, *param) - y
+    return np.matmul(r, np.matmul(cminv, r.T))
+
 
 def chisqfn_bayes(p, fnc, x, y, cminv, priors, priorsigma):
     r = fnc(x, p) - y
