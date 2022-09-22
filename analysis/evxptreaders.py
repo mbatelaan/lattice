@@ -5,6 +5,7 @@ from .bootstrap import bootstrap
 def evxptdata(evxptres, numbers=[0], nboot=500, nbin=1):
     """Get the evxpt data from the file and output a bootstrapped numpy array.
 
+    evxptres is the location of the evxpt file
     'numbers' is a list of the number of the result you want if there are multiple in the file
     The output is a numpy matrix with:
     axis=0: bootstraps
