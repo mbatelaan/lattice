@@ -6,9 +6,9 @@ startseed = 1234
 def bootstrap(raw_data, config_ax, nboot, nbin=1):
     """Take a matrix with the configurations along the config_ax axis and return a bootstrapped version of the matrix with the bootstraps along axis 0
 
-
-    nboot = number of bootstrap resamples
-    nbin = number of bins (default 1)
+    config_ax = integer of the axis where the configurations are
+    nboot = integer number of bootstrap resamples
+    nbin = integer number of bins (default 1)
     """
     nconf = int(np.shape(raw_data)[config_ax] / nbin)
     # move the axis with the configurations to axis 0
@@ -28,23 +28,9 @@ def bootstrap(raw_data, config_ax, nboot, nbin=1):
         tmpdata = np.array(data)
     myseed = startseed * nconf / nboot
     np.random.seed(int(myseed))
-    locranint = np.random.randint
+
+    get_random_ints = np.random.randint
     for iboot in range(nboot):
-        rint = locranint(0, nconf, nconf)
-        bsdata[iboot] = np.average(tmpdata[rint], axis=0)
+        random_ints = get_random_ints(0, nconf, nconf)
+        bsdata[iboot] = np.average(tmpdata[random_ints], axis=0)
     return bsdata
-
-
-# def bootstrap(array, nboot, cfg_axis=0, boot_axis=0):
-#     array = np.moveaxis(array, cfg_axis, 0)
-#     length = np.shape(array)[0]
-#     result = np.empty([nboot, *np.shape(array)[1:]], dtype=array.dtype)
-#     result[0] = np.mean(array, axis=0)
-#     myseed = int(startseed * nboot)
-#     np.random.seed(myseed)
-
-#     for iboot in range(1, nboot):
-#         rint = np.random.randint(0, length, size=length)
-#         result[iboot] = np.mean(array[rint], axis=0)
-#     result = np.moveaxis(result, 0, boot_axis)
-#     return result
