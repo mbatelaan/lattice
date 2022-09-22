@@ -34,7 +34,12 @@ def sortmompar(params):
 
 
 def bs_effmass(
-    data: np.array, time_axis: int = 1, spacing: int = 1, plot: bool = False
+    data: np.array,
+    time_axis: int = 1,
+    spacing: int = 1,
+    plot: bool = False,
+    show: bool = False,
+    savefile="",
 ):
     """Calculate the effective energy of the correlator
 
@@ -43,6 +48,8 @@ def bs_effmass(
     :param spacing: Determines the spacing to use between the numerator and denominator.
     :returns: An array containing the effective energy for all the bootstrap values
     """
+    # Move the time axis to the second index
+    data = np.moveaxis(data, time_axis, 1)
     effmass_ = np.log(np.abs(data[:, :-spacing] / data[:, spacing:])) / spacing
     if plot:
         xlim = 30
@@ -52,7 +59,9 @@ def bs_effmass(
         yerr = np.std(effmass_, axis=0)
         pypl.figure("effmass_plot", figsize=(9, 6))
         # pypl.plot(efftime[:xlim], effmass_[:xlim])
+        pypl.grid(True, alpha=0.3)
         pypl.xlim(0, xlim)
+        pypl.ylim(0, 1)
         pypl.errorbar(
             efftime[:xlim],
             yavg[:xlim],
@@ -63,7 +72,9 @@ def bs_effmass(
             color="k",
             markerfacecolor="none",
         )
-        pypl.show()
+        pypl.savefig(savefile)
+        if show:
+            pypl.show()
         pypl.close()
     return effmass_
 
@@ -303,6 +314,7 @@ def fit_bootstrap_bayes(
     if time:
         start = tm.time()
 
+    # print(fitfnc.__doc__)
     nboot = np.shape(data)[0]
     yerr = np.std(data, axis=0)
     # Idinv = np.diag(np.ones(len(data[0])))
@@ -316,16 +328,12 @@ def fit_bootstrap_bayes(
         p0,
         args=(fitfnc, x, dataavg, varinv, prior, priorsigma),
         method="Nelder-Mead",
-        # bounds=bounds,
         options={"disp": False},
     )
     chisq = ff.chisqfn_bayes(resavg.x, fitfnc, x, dataavg, cvinv, prior, priorsigma)
-    # redchisq = resavg.fun / (len(dataavg) - len(p0))
     redchisq = chisq / (len(dataavg) - len(p0))
-    # p0 = resavg.x
 
     param_bs = np.zeros((nboot, len(p0)))
-    # cvinv = np.linalg.inv(np.diag(yerr ** 2))
     for iboot in range(nboot):
         yboot = data[iboot, :]
         res = syopt.minimize(
@@ -334,7 +342,6 @@ def fit_bootstrap_bayes(
             args=(fitfnc, x, yboot, varinv, prior, priorsigma),
             method="Nelder-Mead",
             # method="L-BFGS-B",
-            # bounds=bounds,
             options={"disp": False},
         )
         param_bs[iboot] = res.x
@@ -342,7 +349,9 @@ def fit_bootstrap_bayes(
     fitparam = {
         "x": x,
         "y": data,
-        "fitfunction": fitfnc,
+        "fitfunction": fitfnc.__doc__,
+        "prior": prior,
+        "priorsigma": priorsigma,
         "paramavg": resavg.x,
         "param": param_bs,
         "redchisq": redchisq,
@@ -681,7 +690,8 @@ def fit_loop_bayes(
 
     ### Set the initial guesses for the parameters
     # timeslice = 13
-    timeslice = time_limits[1][1] - 3
+    # timeslice = time_limits[1][1] - 3
+    timeslice = 13
     fitfnc.initparfnc(data, timeslice=timeslice)
     # fitfnc.initparfnc(
     #     [np.average(amp0, axis=0)[timeslice], np.std(amp0, axis=0)[timeslice]],
@@ -710,6 +720,8 @@ def fit_loop_bayes(
                     time=time,
                 )
                 if disp:
+                    print(f"priors = {fitfnc.initpar}")
+                    # print(f"priors sigma = {fitfnc.priorsigma}")
                     print(f"parameter values = {fitparam_unpert['paramavg']}")
                     print(f"chi-sq. per dof. = {fitparam_unpert['redchisq']}")
                 fitparam_unpert["y"] = data
