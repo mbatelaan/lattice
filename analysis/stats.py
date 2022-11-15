@@ -273,13 +273,13 @@ def fit_bootstrap(fitfnc, p0, x, data, bounds=None, time=False, fullcov=False):
     p0 = resavg.x
 
     param_bs = np.zeros((nboot, len(p0)))
-    # cvinv = np.linalg.inv(np.diag(yerr ** 2))
+    sigma_ = np.linalg.inv(np.diag(yerr**2))
     for iboot in range(nboot):
         yboot = data[iboot, :]
         res = syopt.minimize(
             ff.chisqfn,
             p0,
-            args=(fitfnc, x, yboot, cvinv),
+            args=(fitfnc, x, yboot, sigma_),
             method="Nelder-Mead",
             # method="L-BFGS-B",
             # bounds=bounds,
@@ -290,11 +290,13 @@ def fit_bootstrap(fitfnc, p0, x, data, bounds=None, time=False, fullcov=False):
     fitparam = {
         "x": x,
         "y": data,
-        "fitfunction": fitfnc,
+        "fitfunction": fitfnc.__doc__,
+        # "fitfunction": fitfnc,
+        "initpar": p0,
         "paramavg": resavg.x,
         "param": param_bs,
-        "chisq": chisq,
         "redchisq": redchisq,
+        "chisq": chisq,
         "dof": len(x) - len(p0),
     }
     if time:
@@ -302,49 +304,54 @@ def fit_bootstrap(fitfnc, p0, x, data, bounds=None, time=False, fullcov=False):
     return fitparam
 
 
-def fit_bootstrap_bayes(
-    fitfnc, p0, prior, priorsigma, x, data, bounds=None, time=False
-):
+def fit_bootstrap_bayes(fitfnc, prior, priorsigma, x, data, bounds=None, time=False):
     """
-    Fit to every bootstrap ensemble using the bayesian fitting methods
-    p0: initial guess for the parameters
+    Fit to every bootstrap resampling using the bayesian fitting methods
+
+    prior: central values of the priors
+    priorsigma: the standard deviation of the prior values
     x: array of x values to fit over
-    data: array/list of BootStrap objects
+    data: array of data to fit the function to. First index is the bootstraps, second index corresponds to the size of x.
+    time: Boolean, print how long the fitting takes
     """
     if time:
         start = tm.time()
 
-    # print(fitfnc.__doc__)
     nboot = np.shape(data)[0]
     yerr = np.std(data, axis=0)
+    dataavg = np.average(data, axis=0)
     # Idinv = np.diag(np.ones(len(data[0])))
     varinv = np.linalg.inv(np.diag(yerr**2))
     cvinv = np.linalg.inv(np.cov(data.T))
-    dataavg = np.average(data, axis=0)
 
-    ### Fit to the data avg with the full covariance matrix
+    ### Fit to the data average
     resavg = syopt.minimize(
         ff.chisqfn_bayes,
-        p0,
+        prior,
         args=(fitfnc, x, dataavg, varinv, prior, priorsigma),
         method="Nelder-Mead",
         options={"disp": False},
     )
-    chisq = ff.chisqfn_bayes(resavg.x, fitfnc, x, dataavg, cvinv, prior, priorsigma)
-    redchisq = chisq / (len(dataavg) - len(p0))
 
-    param_bs = np.zeros((nboot, len(p0)))
+    ### Fit to each bootstrap resample
+    param_bs = np.zeros((nboot, len(prior)))
     for iboot in range(nboot):
         yboot = data[iboot, :]
         res = syopt.minimize(
             ff.chisqfn_bayes,
-            p0,
+            prior,
             args=(fitfnc, x, yboot, varinv, prior, priorsigma),
             method="Nelder-Mead",
             # method="L-BFGS-B",
             options={"disp": False},
         )
         param_bs[iboot] = res.x
+
+    # Calculate the reduced chi-squared using the full covariance matrix
+    chisq = ff.chisqfn_bayes(
+        np.average(param_bs, axis=0), fitfnc, x, dataavg, cvinv, prior, priorsigma
+    )
+    redchisq = chisq / (len(dataavg) - len(prior))
 
     fitparam = {
         "x": x,
@@ -356,7 +363,7 @@ def fit_bootstrap_bayes(
         "param": param_bs,
         "redchisq": redchisq,
         "chisq": chisq,
-        "dof": len(x) - len(p0),
+        "dof": len(x) - len(prior),
     }
     if time:
         end = tm.time()
@@ -676,42 +683,49 @@ def fit_loop_ratio(
 
 
 def fit_loop_bayes(
-    data, fitfnc, time_limits, plot=False, disp=False, time=False, weights_=False
+    data,
+    fitfnc,
+    time_limits,
+    plot=False,
+    disp=False,
+    time=False,
+    weights_=True,
+    timeslice=13,
 ):
     """
-    Fit the correlator by looping over time ranges and calculating the weight for each fit.
+    Fit the correlator by looping over time ranges and calculating the weight for each fit. Using the Bayesian fitting approach.
 
-    time_limits = [[tminmin,tminmax],[tmaxmin, tmaxmax]]
+    data: array of data to fit the function to. First index is the bootstraps.
+    time_limits =  [[tminmin,tminmax],[tmaxmin, tmaxmax]]
+    time: Boolean, print how long the fitting takes
+    plot: Boolean, make plots of the fit results
+    disp: Boolean, print out information about each fit as it is done
+    weights_: Boolean, calculate the Bayesian weights of each fit
     """
 
     ### Get the effective mass and amplitude for p0
     amp0 = effamp(data, plot=False)
     mass0 = bs_effmass(data, plot=False)
 
-    ### Set the initial guesses for the parameters
-    # timeslice = 13
-    # timeslice = time_limits[1][1] - 3
-    timeslice = 13
+    ### Set priors for the parameters using the effective data at a timeslice
+    # timeslice = 15
     fitfnc.initparfnc(data, timeslice=timeslice)
-    # fitfnc.initparfnc(
-    #     [np.average(amp0, axis=0)[timeslice], np.std(amp0, axis=0)[timeslice]],
-    #     [np.average(mass0, axis=0)[timeslice], np.std(mass0, axis=0)[timeslice]],
-    # )
 
+    ### Loop over the tmin and tmax values
     fitlist = []
     [[tminmin, tminmax], [tmaxmin, tmaxmax]] = time_limits
     for tmin in range(tminmin, tminmax + 1):
         for tmax in range(tmaxmin, tmaxmax + 1):
-            if tmax - tmin > len(fitfnc.initpar) + 1:
+            if tmax - tmin > len(fitfnc.initpar):
                 timerange = np.arange(tmin, tmax)
                 if disp:
                     print(f"\ntime range = {tmin}-{tmax}")
-                ydata = data[:, timerange]
+                    # print(f"\ntime range = {timerange}")
 
+                ydata = data[:, timerange]
                 ### Perform the fit
                 fitparam_unpert = fit_bootstrap_bayes(
                     fitfnc.eval,
-                    fitfnc.initpar,
                     fitfnc.initpar,
                     fitfnc.priorsigma,
                     timerange,
@@ -721,7 +735,7 @@ def fit_loop_bayes(
                 )
                 if disp:
                     print(f"priors = {fitfnc.initpar}")
-                    # print(f"priors sigma = {fitfnc.priorsigma}")
+                    print(f"priors sigma = {fitfnc.priorsigma}")
                     print(f"parameter values = {fitparam_unpert['paramavg']}")
                     print(f"chi-sq. per dof. = {fitparam_unpert['redchisq']}")
                 fitparam_unpert["y"] = data
