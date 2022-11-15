@@ -240,8 +240,8 @@ class Twoexp:
 class Twoexp_log:
     def __init__(self):
         self.npar = 4
-        self.label = r"Twoexp"
-        self.initpar = np.array([1.0, 0.4, 1.0, 0.9])
+        self.label = r"Twoexp_log"
+        self.initpar = np.array([1.0, 0.4, 1.0, -0.9])
         self.bounds = [(-np.inf, np.inf), (-1.0, 1.0), (-np.inf, np.inf), (-1.0, 3.0)]
 
     def initparfnc(self, data, timeslice=10):
@@ -254,15 +254,15 @@ class Twoexp_log:
                 np.average(amp, axis=0)[timeslice],
                 np.average(energy, axis=0)[timeslice],
                 1,
-                np.log(np.average(energy, axis=0)[timeslice]),
+                np.log(0.8 * np.average(energy, axis=0)[timeslice]),
             ]
         )
         self.priorsigma = np.array(
             [
-                10 * np.std(amp, axis=0)[timeslice],
-                10 * np.std(energy, axis=0)[timeslice],
+                2 * np.std(amp, axis=0)[timeslice],
+                np.std(energy, axis=0)[timeslice],
                 1,
-                2,
+                0.5,
             ]
         )
 
@@ -277,6 +277,8 @@ class Twoexp_log:
         E_0 = p[1]
         A_1 = p[0] * p[2]
         E_1 = p[1] + exp(p[3])
+
+        Logarithmic parameters are from https://arxiv.org/abs/2009.11825
         """
         return p[0] * np.exp(-x * p[1]) * (1 + p[2] * np.exp(-x * np.exp(p[3])))
 
@@ -390,7 +392,7 @@ class Threeexp_log:
             (-1.0, 3.0),
         ]
 
-    def initparfnc(self, data, timeslice=10):
+    def initparfnc(self, data, timeslice=13):
         amp = stats.effamp(data, plot=False)
         energy = stats.bs_effmass(data, plot=False)
 
@@ -399,9 +401,9 @@ class Threeexp_log:
                 np.average(amp, axis=0)[timeslice],
                 np.average(energy, axis=0)[timeslice],
                 1,
-                np.log(np.average(energy, axis=0)[timeslice]),
+                np.log(0.25 * np.average(energy, axis=0)[timeslice]),
                 1,
-                np.log(np.average(energy, axis=0)[timeslice]),
+                np.log(0.25 * np.average(energy, axis=0)[timeslice]),
             ]
         )
         self.priorsigma = np.array(
@@ -409,7 +411,7 @@ class Threeexp_log:
                 2 * np.std(amp, axis=0)[timeslice],
                 2 * np.std(energy, axis=0)[timeslice],
                 1,
-                2,
+                1,
                 1,
                 2,
             ]
@@ -853,7 +855,8 @@ class Linear:
 
 
 def constant(x, p0):
-    return p0 * x / x
+    # return p0 * x / x
+    return p0 * np.ones(len(x))
 
 
 def linear(x, p0, p1):
