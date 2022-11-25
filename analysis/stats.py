@@ -270,7 +270,7 @@ def fit_bootstrap(fitfnc, p0, x, data, bounds=None, time=False, fullcov=False):
     )
     chisq = resavg.fun
     redchisq = resavg.fun / (len(data[0, :]) - len(p0))
-    p0 = resavg.x
+    # p0 = resavg.x
 
     param_bs = np.zeros((nboot, len(p0)))
     sigma_ = np.linalg.inv(np.diag(yerr**2))
