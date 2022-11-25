@@ -812,7 +812,8 @@ class Constant:
 
     def eval(self, x, p):
         """evaluate"""
-        return p[0] * x / x
+        return p[0] * np.ones(len(x))
+        # return p[0] * x / x
 
 
 ############################################################
