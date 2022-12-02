@@ -537,6 +537,138 @@ def fit_bootstrap_ratio(
     return fitparam, fitparam_q1, fitparam_q2
 
 
+def fit_bootstrap_ratio_fixed(
+    fitfnc_ratio,
+    x,
+    twopt_fit,
+    data_ratio1,
+    data_ratio2,
+    p0_q1,
+    p0_q2,
+    time=False,
+    disp=False,
+    fullcov=False,
+):
+    """
+    Fit to every bootstrap ensemble and use multiprocessing to split up the task over two processors
+    p0: initial guess for the parameters
+    x: array of x values to fit over
+    data: array/list of BootStrap objects
+    """
+    if time:
+        start = tm.time()
+
+    nboot = np.shape(data_ratio1)[0]
+    # Set the q parameters for the ratio fit
+    # fitfnc_ratio.q = np.average(twopt_fit, axis=0)
+    fitfnc_ratio.q = np.array(
+        [
+            np.average(twopt_fit[:, 0]),
+            np.average(twopt_fit[:, 1]),
+            np.average(twopt_fit[:, 0]) * np.average(twopt_fit[:, 2]),
+            np.average(twopt_fit[:, 1]) + np.exp(np.average(twopt_fit[:, 3])),
+        ]
+    )
+    # fitfnc_ratio.q = resavg.x
+
+    ### Quark 1 ratio fit
+    cvinv_ratio1 = np.linalg.inv(np.cov(data_ratio1.T))
+    diag_sigma_ratio1 = np.linalg.inv(np.diag(np.std(data_ratio1, axis=0) ** 2))
+    dataavg_ratio1 = np.average(data_ratio1, axis=0)
+    resavg_ratio1 = syopt.minimize(
+        ff.chisqfn,
+        p0_q1,
+        args=(fitfnc_ratio.eval, x, dataavg_ratio1, cvinv_ratio1),
+        method="Nelder-Mead",
+        options={"disp": False},
+    )
+    chisq_ratio1 = resavg_ratio1.fun
+    redchisq_ratio1 = resavg_ratio1.fun / (
+        len(data_ratio1[0, :]) - len(fitfnc_ratio.initpar)
+    )
+    p0_q1 = resavg_ratio1.x
+
+    ### Quark 2 ratio fit
+    cvinv_ratio2 = np.linalg.inv(np.cov(data_ratio2.T))
+    diag_sigma_ratio2 = np.linalg.inv(np.diag(np.std(data_ratio2, axis=0) ** 2))
+    dataavg_ratio2 = np.average(data_ratio2, axis=0)
+    resavg_ratio2 = syopt.minimize(
+        ff.chisqfn,
+        p0_q2,
+        args=(fitfnc_ratio.eval, x, dataavg_ratio2, cvinv_ratio2),
+        method="Nelder-Mead",
+        options={"disp": False},
+    )
+    chisq_ratio2 = resavg_ratio2.fun
+    redchisq_ratio2 = resavg_ratio2.fun / (
+        len(data_ratio2[0, :]) - len(fitfnc_ratio.initpar)
+    )
+    p0_q2 = resavg_ratio2.x
+
+    ### Fit to each bootstrap resample
+    param_bs_q1 = np.zeros((nboot, len(fitfnc_ratio.initpar)))
+    param_bs_q2 = np.zeros((nboot, len(fitfnc_ratio.initpar)))
+    for iboot in range(nboot):
+        # 2pt. function data
+        fitfnc_ratio.q = np.array(
+            [
+                np.average(twopt_fit[iboot, 0]),
+                np.average(twopt_fit[iboot, 1]),
+                np.average(twopt_fit[iboot, 0]) * np.average(twopt_fit[iboot, 2]),
+                np.average(twopt_fit[iboot, 1])
+                + np.exp(np.average(twopt_fit[iboot, 3])),
+            ]
+        )
+
+        # Quark 1 ratio
+        yboot1 = data_ratio1[iboot, :]
+        res1 = syopt.minimize(
+            ff.chisqfn,
+            p0_q1,
+            args=(fitfnc_ratio.eval, x, yboot1, diag_sigma_ratio1),
+            method="Nelder-Mead",
+            options={"disp": False},
+        )
+        param_bs_q1[iboot] = res1.x
+
+        # Quark 2 ratio
+        yboot2 = data_ratio2[iboot, :]
+        res2 = syopt.minimize(
+            ff.chisqfn,
+            p0_q2,
+            args=(fitfnc_ratio.eval, x, yboot2, diag_sigma_ratio2),
+            method="Nelder-Mead",
+            options={"disp": False},
+        )
+        param_bs_q2[iboot] = res2.x
+
+    fitparam_q1 = {
+        "x": x,
+        "y": data_ratio1,
+        "fitfunction": fitfnc_ratio.eval.__doc__,
+        "paramavg": resavg_ratio1.x,
+        "param": param_bs_q1,
+        "chisq": chisq_ratio1,
+        "redchisq": redchisq_ratio1,
+        "dof": len(x) - len(p0_q1),
+        "twopt_fit": twopt_fit,
+    }
+    fitparam_q2 = {
+        "x": x,
+        "y": data_ratio2,
+        "fitfunction": fitfnc_ratio.eval.__doc__,
+        "paramavg": resavg_ratio2.x,
+        "param": param_bs_q2,
+        "chisq": chisq_ratio2,
+        "redchisq": redchisq_ratio2,
+        "dof": len(x) - len(p0_q2),
+        "twopt_fit": twopt_fit,
+    }
+    if time:
+        print("fit_bootstrap time: \t", tm.time() - start)
+    return fitparam_q1, fitparam_q2
+
+
 def weights(dof, chisq, derrors):
     """
     Take a list of degrees of freedom and of chi-squared values and errors of the fit and return the weights for each fit. This uses the weighting discussed in appendix B of Beane2020.
@@ -620,7 +752,6 @@ def fit_loop_ratio(
 ):
     """
     Fit the correlator by looping over time ranges and calculating the weight for each fit.
-
     time_limits = [[tminmin,tminmax],[tmaxmin, tmaxmax]]
     """
 
@@ -644,11 +775,10 @@ def fit_loop_ratio(
             if tmax - tmin > len(fitfnc.initpar) + 1:
                 timerange = np.arange(tmin, tmax)
                 if tmax_energy:
-                    timerange_energy = np.arange(tmin, tmaxenergy)
+                    timerange_energy = np.arange(tmin, tmax_energy)
                 else:
                     timerange_energy = np.arange(tmin, tmax + 5)
-                if disp:
-                    print(f"\ntime range = {tmin}-{tmax}")
+                print(f"\ntime range = {tmin}-{tmax}")
                 ydata = data[:, timerange_energy]
                 ydata_q1 = data_ratio1[:, timerange]
                 ydata_q2 = data_ratio2[:, timerange]
@@ -720,24 +850,20 @@ def fit_loop_ratio_fixed(
     [[tminmin, tminmax], [tmaxmin, tmaxmax]] = time_limits
     for tmin in range(tminmin, tminmax):
         for tmax in range(tmaxmin, tmaxmax):
-            if tmax - tmin > len(fitfnc.initpar) + 1:
+            if tmax - tmin > len(fitfnc_ratio.initpar) + 1:
                 timerange = np.arange(tmin, tmax)
                 # timerange_energy = np.arange(tmin, tmax + 10)
-                if disp:
-                    print(f"\ntime range = {tmin}-{tmax}")
+                print(f"\ntime range = {tmin}-{tmax}")
                 # ydata = data[:, timerange_energy]
                 ydata_q1 = data_ratio1[:, timerange]
                 ydata_q2 = data_ratio2[:, timerange]
 
-                fitparam_unpert, fitparam_q1, fitparam_q2 = fit_bootstrap_ratio(
-                    fitfnc,
+                fitparam_q1, fitparam_q2 = fit_bootstrap_ratio_fixed(
                     fitfnc_ratio,
                     timerange,
-                    timerange_energy,
-                    ydata,
+                    energyfit,
                     ydata_q1,
                     ydata_q2,
-                    fitfnc.initpar,
                     p0_q1,
                     p0_q2,
                     time=time,
@@ -745,25 +871,20 @@ def fit_loop_ratio_fixed(
                     disp=disp,
                 )
                 if disp:
-                    print(f"parameter values = {fitparam_unpert['paramavg']}")
-                    print(f"chi-sq. per dof. = {fitparam_unpert['redchisq']}")
                     print(f"parameter values = {fitparam_q1['paramavg']}")
                     print(f"chi-sq. per dof. = {fitparam_q1['redchisq']}")
                     print(f"parameter values = {fitparam_q2['paramavg']}")
                     print(f"chi-sq. per dof. = {fitparam_q2['redchisq']}")
-                fitparam_unpert["y"] = data
                 fitparam_q1["y"] = data_ratio1
                 fitparam_q2["y"] = data_ratio2
-                fitlist.append(fitparam_unpert)
                 fitlist_q1.append(fitparam_q1)
                 fitlist_q2.append(fitparam_q2)
 
     if weights_:
-        fitlist, weightlist = beane_weights(fitlist, param_index=1)
         fitlist_q1, weightlist1 = beane_weights(fitlist_q1, param_index=1)
         fitlist_q2, weightlist2 = beane_weights(fitlist_q2, param_index=1)
 
-    return fitlist, fitlist_q1, fitlist_q2
+    return fitlist_q1, fitlist_q2
 
 
 def fit_loop_bayes(
