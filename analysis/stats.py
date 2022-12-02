@@ -40,6 +40,7 @@ def bs_effmass(
     plot: bool = False,
     show: bool = False,
     savefile="",
+    xlim=30,
 ):
     """Calculate the effective energy of the correlator
 
@@ -52,7 +53,7 @@ def bs_effmass(
     data = np.moveaxis(data, time_axis, 1)
     effmass_ = np.log(np.abs(data[:, :-spacing] / data[:, spacing:])) / spacing
     if plot:
-        xlim = 30
+        # xlim = 30
         time = np.arange(0, len(data))
         efftime = time[:-1] + 0.5
         yavg = np.average(effmass_, axis=0)
@@ -273,6 +274,7 @@ def fit_bootstrap(fitfnc, p0, x, data, bounds=None, time=False, fullcov=False):
     # p0 = resavg.x
 
     param_bs = np.zeros((nboot, len(p0)))
+    fitted_func = np.zeros((nboot, len(x)))
     sigma_ = np.linalg.inv(np.diag(yerr**2))
     for iboot in range(nboot):
         yboot = data[iboot, :]
@@ -286,6 +288,7 @@ def fit_bootstrap(fitfnc, p0, x, data, bounds=None, time=False, fullcov=False):
             options={"disp": False},
         )
         param_bs[iboot] = res.x
+        fitted_func[iboot] = fitfnc(x, res.x)
 
     fitparam = {
         "x": x,
@@ -295,6 +298,7 @@ def fit_bootstrap(fitfnc, p0, x, data, bounds=None, time=False, fullcov=False):
         "initpar": p0,
         "paramavg": resavg.x,
         "param": param_bs,
+        "fitted_func": fitted_func,
         "redchisq": redchisq,
         "chisq": chisq,
         "dof": len(x) - len(p0),
@@ -501,7 +505,7 @@ def fit_bootstrap_ratio(
     fitparam = {
         "x": x_energy,
         "y": data,
-        "fitfunction": fitfnc.eval,
+        "fitfunction": fitfnc.eval.__doc__,
         "paramavg": resavg.x,
         "param": param_bs,
         "chisq": chisq,
@@ -511,7 +515,7 @@ def fit_bootstrap_ratio(
     fitparam_q1 = {
         "x": x,
         "y": data_ratio1,
-        "fitfunction": fitfnc_ratio.eval,
+        "fitfunction": fitfnc_ratio.eval.__doc__,
         "paramavg": resavg_ratio1.x,
         "param": param_bs_q1,
         "chisq": chisq_ratio1,
@@ -521,7 +525,7 @@ def fit_bootstrap_ratio(
     fitparam_q2 = {
         "x": x,
         "y": data_ratio2,
-        "fitfunction": fitfnc_ratio.eval,
+        "fitfunction": fitfnc_ratio.eval.__doc__,
         "paramavg": resavg_ratio2.x,
         "param": param_bs_q2,
         "chisq": chisq_ratio2,
