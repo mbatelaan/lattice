@@ -616,6 +616,7 @@ def fit_loop_ratio(
     disp=False,
     time=False,
     weights_=False,
+    tmax_energy=False,
 ):
     """
     Fit the correlator by looping over time ranges and calculating the weight for each fit.
@@ -642,10 +643,89 @@ def fit_loop_ratio(
         for tmax in range(tmaxmin, tmaxmax):
             if tmax - tmin > len(fitfnc.initpar) + 1:
                 timerange = np.arange(tmin, tmax)
-                timerange_energy = np.arange(tmin, tmax + 10)
+                if tmax_energy:
+                    timerange_energy = np.arange(tmin, tmaxenergy)
+                else:
+                    timerange_energy = np.arange(tmin, tmax + 5)
                 if disp:
                     print(f"\ntime range = {tmin}-{tmax}")
                 ydata = data[:, timerange_energy]
+                ydata_q1 = data_ratio1[:, timerange]
+                ydata_q2 = data_ratio2[:, timerange]
+
+                fitparam_unpert, fitparam_q1, fitparam_q2 = fit_bootstrap_ratio(
+                    fitfnc,
+                    fitfnc_ratio,
+                    timerange,
+                    timerange_energy,
+                    ydata,
+                    ydata_q1,
+                    ydata_q2,
+                    fitfnc.initpar,
+                    p0_q1,
+                    p0_q2,
+                    time=time,
+                    fullcov=False,
+                    disp=disp,
+                )
+                if disp:
+                    print(f"parameter values = {fitparam_unpert['paramavg']}")
+                    print(f"chi-sq. per dof. = {fitparam_unpert['redchisq']}")
+                    print(f"parameter values = {fitparam_q1['paramavg']}")
+                    print(f"chi-sq. per dof. = {fitparam_q1['redchisq']}")
+                    print(f"parameter values = {fitparam_q2['paramavg']}")
+                    print(f"chi-sq. per dof. = {fitparam_q2['redchisq']}")
+                fitparam_unpert["y"] = data
+                fitparam_q1["y"] = data_ratio1
+                fitparam_q2["y"] = data_ratio2
+                fitlist.append(fitparam_unpert)
+                fitlist_q1.append(fitparam_q1)
+                fitlist_q2.append(fitparam_q2)
+
+    if weights_:
+        fitlist, weightlist = beane_weights(fitlist, param_index=1)
+        fitlist_q1, weightlist1 = beane_weights(fitlist_q1, param_index=1)
+        fitlist_q2, weightlist2 = beane_weights(fitlist_q2, param_index=1)
+
+    return fitlist, fitlist_q1, fitlist_q2
+
+
+def fit_loop_ratio_fixed(
+    energyfit,
+    data_ratio1,
+    data_ratio2,
+    fitfnc_ratio,
+    time_limits,
+    plot=False,
+    disp=False,
+    time=False,
+    weights_=False,
+):
+    """
+    Fit the correlator by looping over time ranges and calculating the weight for each fit.
+
+    time_limits = [[tminmin,tminmax],[tmaxmin, tmaxmax]]
+    """
+
+    # ### Set the initial guesses for the parameters
+    # fitfnc.initparfnc(data)
+    fitfnc_ratio.initparfnc(data_ratio1)
+    p0_q1 = fitfnc_ratio.initpar
+    fitfnc_ratio.initparfnc(data_ratio2)
+    p0_q2 = fitfnc_ratio.initpar
+
+    # fitlist = []
+    fitlist_q1 = []
+    fitlist_q2 = []
+    [[tminmin, tminmax], [tmaxmin, tmaxmax]] = time_limits
+    for tmin in range(tminmin, tminmax):
+        for tmax in range(tmaxmin, tmaxmax):
+            if tmax - tmin > len(fitfnc.initpar) + 1:
+                timerange = np.arange(tmin, tmax)
+                # timerange_energy = np.arange(tmin, tmax + 10)
+                if disp:
+                    print(f"\ntime range = {tmin}-{tmax}")
+                # ydata = data[:, timerange_energy]
                 ydata_q1 = data_ratio1[:, timerange]
                 ydata_q2 = data_ratio2[:, timerange]
 
