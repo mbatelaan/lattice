@@ -71,6 +71,60 @@ def chisqfn1(p, fnc1, fnc2, fnc3, x1, x2, x3, y, cminv):
     return np.matmul(r, np.matmul(cminv, r.T))
 
 
+def dipole(Qsq, a, lmb):
+    """
+    Dipole function
+
+    f(Q^2, a, Lambda) = a/(1+(Q^2/Lambda**2))**2
+    """
+    return a * (1 + Qsq / lmb**2) ** (-2)
+
+
+def dipole_GE_double(Qsq, lmb):
+    """
+    Dipole function
+
+    f(Q^2, a, Lambda) = a/(1+(Q^2/Lambda**2))**2
+    """
+    return 2 * (1 + Qsq / lmb**2) ** (-2)
+
+
+def dipole_GE_single(Qsq, lmb):
+    """
+    Dipole function
+
+    f(Q^2, a, Lambda) = a/(1+(Q^2/Lambda**2))**2
+    """
+    return (1 + Qsq / lmb**2) ** (-2)
+
+
+def dipole_like_GE_double(Qsq, dE1, dE2):
+    """
+    Dipole-like function
+
+    f(Q^2, a, Lambda) = a/(1+(Q^2/Lambda**2))**2
+    """
+    return 2 / (1 + dE1 * Qsq + dE2 * Qsq**2)
+
+
+def dipole_like_GE_single(Qsq, dE1, dE2):
+    """
+    Dipole-like function
+
+    f(Q^2, a, Lambda) = a/(1+(Q^2/Lambda**2))**2
+    """
+    return 1 / (1 + dE1 * Qsq + dE2 * Qsq**2)
+
+
+def dipole_like_GM(Qsq, mu, dM1, dM2):
+    """
+    Dipole-like function
+
+    f(Q^2, a, Lambda) = a/(1+(Q^2/Lambda**2))**2
+    """
+    return mu / (1 + dM1 * Qsq + dM2 * Qsq**2)
+
+
 def initffncs(fitflg, a=1.0):
     """initialize the functions"""
     if fitflg == "Aexp":
@@ -259,8 +313,8 @@ class Twoexp_log:
         )
         self.priorsigma = np.array(
             [
-                2 * np.std(amp, axis=0)[timeslice],
-                np.std(energy, axis=0)[timeslice],
+                4 * np.std(amp, axis=0)[timeslice],
+                4 * np.std(energy, axis=0)[timeslice],
                 1,
                 0.5,
             ]

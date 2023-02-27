@@ -73,7 +73,7 @@ def err_brackets(
             quantity_string = f"{quantity:#.{quantity_prec}g}"
         # if error is larger than quantity
         elif quantity_prec <= 0:
-            quantity_string = "0." + "0" * (error_prec - 1)
+            quantity_string = "0." + "0" * (error_prec + 1)
         else:
             # Leading zeros AFTER negative signs
             if quantity < 0:
@@ -81,7 +81,22 @@ def err_brackets(
                     "-" + "0" * (-exp_diff) + f"{abs(quantity):#.{quantity_prec}g}"
                 )
             else:
-                quantity_string = "0" * (-exp_diff) + f"{quantity:#.{quantity_prec}g}"
+                # quantity_string = "0" * (-exp_diff) + f"{quantity:#.{quantity_prec}g}"
+                print(f"{quantity_exp=}")
+                print(f"{error_exp=}")
+                print(f"{quantity_sig=}")
+                print(f"{error_sig=}")
+                print(f"{exp_diff=}")
+                print(f"{quantity_prec=}\n")
+                # print(exp_diff)
+                # check if we need leading zeros
+                if quantity_exp + error_prec >= error_prec:
+                    quantity_string = (
+                        "0" * (-exp_diff) + f"{quantity:#.{quantity_prec}g}"
+                    )
+                else:
+                    quantity_string = f"{quantity:#.{quantity_prec}g}"
+
         # of course, no exp needed
         exp_string = ""
 
@@ -152,6 +167,6 @@ def frexp10(float_in):
     """Returns the mantissa and exponent in base 10 of input float."""
     # ADDED: abs()
     exponent = math.floor(math.log10(abs(float_in)))
-    significand = float_in / (10 ** exponent)
+    significand = float_in / (10**exponent)
 
     return tuple([significand, exponent])
